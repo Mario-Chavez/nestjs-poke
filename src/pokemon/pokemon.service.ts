@@ -21,24 +21,16 @@ export class PokemonService {
     createPokemonDto.name = createPokemonDto.name.toLocaleLowerCase(); //minuscula
 
     try {
-      console.log('antes');
       const newPokemon = await this.pokemonModel.create(createPokemonDto);
-      console.log('despues', newPokemon);
 
       return newPokemon;
     } catch (error) {
-      if (error.code === 11000) {
-        throw new BadRequestException(
-          `Pokemon exists in db ${JSON.stringify(error.keyValue)}`,
-        );
-      }
-      console.log(error);
-      throw new InternalServerErrorException();
+      this.handlerEceptions(error);
     }
   }
 
   findAll() {
-    return `This action returns all pokemon`;
+    return this.pokemonModel.find();
   }
 
   async findOne(term: string) {
@@ -68,11 +60,35 @@ export class PokemonService {
     return pokemon;
   }
 
-  update(id: number, updatePokemonDto: UpdatePokemonDto) {
-    return `This action updates a #${id} pokemon`;
+  async update(term: string, updatePokemonDto: UpdatePokemonDto) {
+    const pokemon = await this.findOne(term);
+    if (updatePokemonDto.name) {
+      updatePokemonDto.name = updatePokemonDto.name.toLowerCase();
+    }
+    try {
+      await pokemon.updateOne(updatePokemonDto, { new: true }); // se guarda en db
+      return { ...pokemon.toJSON(), ...updatePokemonDto }; // se muestra el  dato actualizado
+    } catch (error) {
+      this.handlerEceptions(error);
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} pokemon`;
+  async remove(id: string) {
+    // deletedCount contador de alementos eliminados
+    const { deletedCount } = await this.pokemonModel.deleteOne({ _id: id });
+    if (deletedCount === 0) {
+      throw new BadRequestException(`Pokemon with Id ${id} not found `);
+    }
+    return;
+  }
+
+  private handlerEceptions(error: any) {
+    if (error.code === 11000) {
+      throw new BadRequestException(
+        `Pokemon exists in db ${JSON.stringify(error.keyValue)}`,
+      );
+    }
+    console.log(error);
+    throw new InternalServerErrorException();
   }
 }
